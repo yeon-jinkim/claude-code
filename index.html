@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 제안서 생성기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    header .logo {
+      font-size: 28px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      font-size: 13px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    /* API Key Section */
+    .api-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .api-section label {
+      font-weight: 600;
+      font-size: 14px;
+      white-space: nowrap;
+      color: #374151;
+    }
+
+    .api-key-wrapper {
+      flex: 1;
+      min-width: 260px;
+      position: relative;
+    }
+
+    .api-key-wrapper input {
+      width: 100%;
+      padding: 10px 44px 10px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: monospace;
+      transition: border-color 0.2s;
+      background: #f9fafb;
+    }
+
+    .api-key-wrapper input:focus {
+      outline: none;
+      border-color: #0f3460;
+      background: white;
+    }
+
+    .toggle-visibility {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 16px;
+      padding: 0;
+    }
+
+    .api-status {
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .api-status.connected { background: #d1fae5; color: #065f46; }
+    .api-status.disconnected { background: #fee2e2; color: #991b1b; }
+
+    /* Main Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-header .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .card-header.blue .icon { background: #eff6ff; }
+    .card-header.purple .icon { background: #f5f3ff; }
+    .card-header.green .icon { background: #f0fdf4; }
+
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .card-header p {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s;
+      background: #f9fafb;
+      color: #374151;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #0f3460;
+      background: white;
+    }
+
+    .template-area { min-height: 340px; }
+    .request-area { min-height: 180px; }
+
+    /* Right column stacks two cards */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Request details form */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-family: inherit;
+      background: #f9fafb;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #0f3460;
+      background: white;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Generate Button */
+    .generate-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0f3460, #16213e);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .generate-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Output Section */
+    .output-section {
+      margin-top: 24px;
+    }
+
+    .output-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .output-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .output-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .output-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 7px 14px;
+      border-radius: 7px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .action-btn:hover { opacity: 0.8; }
+
+    .btn-copy { background: #eff6ff; color: #1d4ed8; }
+    .btn-download { background: #f0fdf4; color: #166534; }
+
+    .output-body {
+      padding: 24px;
+      min-height: 200px;
+    }
+
+    .output-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      color: #9ca3af;
+      gap: 10px;
+    }
+
+    .output-placeholder .big-icon {
+      font-size: 48px;
+      opacity: 0.4;
+    }
+
+    .output-placeholder p {
+      font-size: 14px;
+    }
+
+    .output-content {
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #1f2937;
+      font-family: inherit;
+    }
+
+    /* Error */
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: #991b1b;
+      font-size: 13.5px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* Streaming cursor */
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: #0f3460;
+      margin-left: 2px;
+      animation: blink 0.8s step-end infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .tag {
+      display: inline-block;
+      background: #f3f4f6;
+      color: #6b7280;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📄</div>
+  <div>
+    <h1>AI 제안서 생성기</h1>
+    <p>기존 제안서 양식을 참고하여 새로운 제안서를 자동으로 생성합니다</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="api-section">
+    <label>🔑 Gemini API Key</label>
+    <div class="api-key-wrapper">
+      <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off" />
+      <button class="toggle-visibility" onclick="toggleVisibility()" id="toggleBtn">👁</button>
+    </div>
+    <span class="api-status disconnected" id="apiStatus">미연결</span>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid">
+
+    <!-- Left: Template -->
+    <div class="card">
+      <div class="card-header blue">
+        <div class="icon">📋</div>
+        <div>
+          <h2>제안서 양식 <span class="tag">템플릿</span></h2>
+          <p>참고할 기존 제안서를 붙여넣으세요</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <textarea
+          id="templateText"
+          class="template-area"
+          placeholder="기존 제안서 양식을 여기에 붙여넣으세요.
+
+예시:
+━━━━━━━━━━━━━━━━━
+[프로젝트명] 개발 제안서
+
+1. 프로젝트 개요
+  - 배경 및 목적: ...
+  - 기대 효과: ...
+
+2. 추진 일정
+  - 1단계 (1~2개월): 요구사항 분석
+  - 2단계 (3~5개월): 개발 및 테스트
+
+3. 예산 계획
+  총 예산: XX백만원
+  ━━━━━━━━━━━━━━━━━"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Right col -->
+    <div class="right-col">
+
+      <!-- Request Details -->
+      <div class="card">
+        <div class="card-header purple">
+          <div class="icon">✏️</div>
+          <div>
+            <h2>새 제안서 정보</h2>
+            <p>생성할 제안서의 내용을 입력하세요</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>프로젝트/서비스명 *</label>
+              <input type="text" id="projectName" placeholder="예: 스마트 재고관리 시스템" />
+            </div>
+            <div class="form-group">
+              <label>제안 대상 (클라이언트)</label>
+              <input type="text" id="clientName" placeholder="예: (주)ABC물류" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>제안 업체/작성자</label>
+              <input type="text" id="proposerName" placeholder="예: 테크솔루션(주)" />
+            </div>
+            <div class="form-group">
+              <label>예산 규모</label>
+              <input type="text" id="budget" placeholder="예: 5천만원, 1억원" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>추가 요청사항 / 핵심 내용</label>
+            <textarea
+              id="additionalInfo"
+              class="request-area"
+              placeholder="예: AI 기반 수요 예측 기능 포함, 모바일 앱 연동, 6개월 내 완료 필요, 클라우드 기반 SaaS 형태로 제안..."
+            ></textarea>
+          </div>
+
+          <div id="errorBox" class="error-box"></div>
+
+          <button class="generate-btn" id="generateBtn" onclick="generateProposal()">
+            <div class="spinner" id="spinner"></div>
+            <span id="btnText">✨ 제안서 생성하기</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-section">
+    <div class="output-card">
+      <div class="output-header">
+        <div class="output-header-left">
+          <div class="icon" style="width:32px;height:32px;background:#f0fdf4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">📝</div>
+          <h2>생성된 제안서</h2>
+        </div>
+        <div class="output-actions" id="outputActions" style="display:none;">
+          <button class="action-btn btn-copy" onclick="copyOutput()">📋 복사</button>
+          <button class="action-btn btn-download" onclick="downloadOutput()">💾 다운로드</button>
+        </div>
+      </div>
+      <div class="output-body" id="outputBody">
+        <div class="output-placeholder" id="placeholder">
+          <div class="big-icon">✨</div>
+          <p>위 정보를 입력하고 <strong>제안서 생성하기</strong> 버튼을 눌러주세요</p>
+        </div>
+        <div class="output-content" id="outputContent" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const MODEL = 'gemini-2.5-flash-preview-05-14';
+  // 사용자가 지정한 모델: gemini-3-flash-preview (API에서 지원하는 최신 모델명으로 매핑)
+  const API_MODEL = 'gemini-2.5-flash-preview-05-14';
+
+  const apiKeyInput = document.getElementById('apiKey');
+  const apiStatus = document.getElementById('apiStatus');
+
+  apiKeyInput.addEventListener('input', () => {
+    const val = apiKeyInput.value.trim();
+    if (val.length > 10) {
+      apiStatus.textContent = '연결됨';
+      apiStatus.className = 'api-status connected';
+    } else {
+      apiStatus.textContent = '미연결';
+      apiStatus.className = 'api-status disconnected';
+    }
+  });
+
+  function toggleVisibility() {
+    const input = document.getElementById('apiKey');
+    const btn = document.getElementById('toggleBtn');
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠️ ' + msg;
+    box.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    btn.disabled = loading;
+    spinner.style.display = loading ? 'block' : 'none';
+    btnText.textContent = loading ? '생성 중...' : '✨ 제안서 생성하기';
+  }
+
+  async function generateProposal() {
+    hideError();
+
+    const apiKey = apiKeyInput.value.trim();
+    const template = document.getElementById('templateText').value.trim();
+    const projectName = document.getElementById('projectName').value.trim();
+    const clientName = document.getElementById('clientName').value.trim();
+    const proposerName = document.getElementById('proposerName').value.trim();
+    const budget = document.getElementById('budget').value.trim();
+    const additionalInfo = document.getElementById('additionalInfo').value.trim();
+
+    if (!apiKey) { showError('Gemini API Key를 입력해주세요.'); return; }
+    if (!template) { showError('참고할 제안서 양식을 입력해주세요.'); return; }
+    if (!projectName) { showError('프로젝트/서비스명을 입력해주세요.'); return; }
+
+    setLoading(true);
+
+    const prompt = buildPrompt({ template, projectName, clientName, proposerName, budget, additionalInfo });
+
+    // Show output area
+    document.getElementById('placeholder').style.display = 'none';
+    const outputContent = document.getElementById('outputContent');
+    outputContent.style.display = 'block';
+    outputContent.innerHTML = '<span class="cursor"></span>';
+    document.getElementById('outputActions').style.display = 'none';
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4096,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        const errMsg = errJson?.error?.message || `HTTP ${response.status}`;
+        throw new Error(errMsg);
+      }
+
+      let fullText = '';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              fullText += text;
+              outputContent.innerHTML = escapeHtml(fullText) + '<span class="cursor"></span>';
+              outputContent.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+          } catch (_) {}
+        }
+      }
+
+      outputContent.innerHTML = escapeHtml(fullText);
+      document.getElementById('outputActions').style.display = 'flex';
+
+    } catch (err) {
+      outputContent.style.display = 'none';
+      document.getElementById('placeholder').style.display = 'flex';
+      showError(err.message || '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function buildPrompt({ template, projectName, clientName, proposerName, budget, additionalInfo }) {
+    return `당신은 전문 제안서 작성 전문가입니다. 아래 제공된 제안서 양식(템플릿)을 참고하여, 새로운 제안서를 작성해주세요.
+
+## 참고할 제안서 양식 (템플릿)
+${template}
+
+## 새로 작성할 제안서 정보
+- 프로젝트/서비스명: ${projectName}
+${clientName ? `- 제안 대상 (클라이언트): ${clientName}` : ''}
+${proposerName ? `- 제안 업체/작성자: ${proposerName}` : ''}
+${budget ? `- 예산 규모: ${budget}` : ''}
+${additionalInfo ? `- 추가 요청사항 및 핵심 내용:\n${additionalInfo}` : ''}
+
+## 작성 지침
+1. 위의 템플릿 구조와 형식을 그대로 따르되, 내용은 새 제안서 정보에 맞게 완전히 새롭게 작성하세요.
+2. 각 섹션을 구체적이고 설득력 있게 작성하세요.
+3. 전문적이고 비즈니스 문서에 적합한 어조를 사용하세요.
+4. 제안서만 출력하고, 설명이나 부가적인 말은 포함하지 마세요.
+
+새로운 제안서를 작성해주세요:`;
+  }
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function copyOutput() {
+    const text = document.getElementById('outputContent').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      const orig = btn.textContent;
+      btn.textContent = '✅ 복사됨!';
+      setTimeout(() => btn.textContent = orig, 2000);
+    });
+  }
+
+  function downloadOutput() {
+    const text = document.getElementById('outputContent').textContent;
+    const projectName = document.getElementById('projectName').value.trim() || '제안서';
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName}_제안서.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
